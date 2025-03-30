@@ -11,17 +11,16 @@ type apiConfig struct {
 	hits atomic.Int32
 }
 
-func (A *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
-	A.hits.Add(1)
-	return next
-}
-
 func main() {
 	const port = "8080"
 	mux := http.NewServeMux()
-	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir(".")))) //Hay que quitar el app porque queremos servir
+	h := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
+	a := apiConfig{}
+	mux.Handle("/app/", a.middlewareMetricsInc(h)) //Hay que quitar el app porque queremos servir
 	//los archivos que están en el dir actual
-	mux.HandleFunc("/healthz", handlerReadiness) //no tienes que crear un directorio para el path
+	mux.HandleFunc("GET /healthz", handlerReadiness) //no tienes que crear un directorio para el path
+	mux.HandleFunc("GET /metrics", a.NumResquests)
+	mux.HandleFunc("POST /reset", a.Reset)
 	server := http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
