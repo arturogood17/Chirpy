@@ -4,7 +4,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync/atomic"
 )
+
+type apiConfig struct {
+	hits atomic.Int32
+}
+
+func (A *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
+	A.hits.Add(1)
+	return next
+}
 
 func main() {
 	const port = "8080"
