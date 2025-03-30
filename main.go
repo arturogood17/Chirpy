@@ -9,8 +9,9 @@ import (
 func main() {
 	const port = "8080"
 	mux := http.NewServeMux()
-	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir("."))))
-	mux.HandleFunc("/healthz", handlerReadiness)
+	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir(".")))) //Hay que quitar el app porque queremos servir
+	//los archivos que están en el dir actual
+	mux.HandleFunc("/healthz", handlerReadiness) //no tienes que crear un directorio para el path
 	server := http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
