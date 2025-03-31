@@ -19,8 +19,8 @@ func main() {
 	mux.Handle("/app/", a.middlewareMetricsInc(h)) //Hay que quitar el app porque queremos servir
 	//los archivos que están en el dir actual
 	mux.HandleFunc("GET /api/healthz", handlerReadiness) //no tienes que crear un directorio para el path
-	mux.HandleFunc("GET /api/metrics", a.NumResquests)
-	mux.HandleFunc("POST /api/reset", a.Reset)
+	mux.HandleFunc("GET /admin/metrics", a.HandlerMetrics)
+	mux.HandleFunc("POST /admin/reset", a.HandlerReset)
 	server := http.Server{
 		Addr:    ":" + port,
 		Handler: mux,

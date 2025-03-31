@@ -12,13 +12,19 @@ func (a *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
-func (a *apiConfig) NumResquests(res http.ResponseWriter, req *http.Request) {
-	res.Write([]byte(fmt.Sprintf("Hits: %v", a.hits.Load())))
+func (a *apiConfig) HandlerMetrics(res http.ResponseWriter, req *http.Request) {
+	req.Header.Set("Content-Type", "text/html")
 	res.WriteHeader(http.StatusOK)
-	res.Write([]byte(http.StatusText(http.StatusOK)))
+	res.Write([]byte(fmt.Sprintf(`<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+  </body>
+</html>
+`, a.hits.Load())))
 }
 
-func (a *apiConfig) Reset(res http.ResponseWriter, req *http.Request) {
+func (a *apiConfig) HandlerReset(res http.ResponseWriter, req *http.Request) {
 	a.hits.Store(0)
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte("Hits reset to 0"))
