@@ -31,7 +31,7 @@ func (a *apiConfig) HandlerReset(res http.ResponseWriter, req *http.Request) {
 	res.Write([]byte("Hits reset to 0"))
 }
 
-func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
+func HandlerChirps(res http.ResponseWriter, req *http.Request) {
 	type JsonBody struct {
 		Body string `json:"body"`
 	}
@@ -39,7 +39,7 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 		Error string `json:"error"`
 	}
 	type ValidR struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 	decoder := json.NewDecoder(req.Body)
 	jb := JsonBody{}
@@ -62,8 +62,14 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 		res.Write(enc)
 		return
 	}
+	bodyVal, err := WordValidation(jb.Body)
+	if err != nil {
+		fmt.Println(err)
+		res.WriteHeader(400)
+		return
+	}
 	valid := ValidR{
-		Valid: true,
+		CleanedBody: bodyVal,
 	}
 	val, err := json.Marshal(valid)
 	if err != nil {
