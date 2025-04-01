@@ -21,7 +21,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", handlerReadiness) //no tienes que crear un directorio para el path
 	mux.HandleFunc("GET /admin/metrics", a.HandlerMetrics)
 	mux.HandleFunc("POST /admin/reset", a.HandlerReset)
-	mux.HandleFunc("POST /api/validate_chirp", a.HandlerChirps)
+	mux.HandleFunc("POST /api/validate_chirp", HandlerChirps)
 	server := http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
