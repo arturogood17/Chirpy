@@ -19,18 +19,23 @@ type apiConfig struct {
 }
 
 func main() {
+	const port = "8080"
 	godotenv.Load(".env")
 	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("db_url must be set")
+	}
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error opening the database: %v", err)
 	}
 	dbQueries := database.New(db)
-	const port = "8080"
+	a := apiConfig{
+		hits:      atomic.Int32{},
+		dbQueries: dbQueries,
+	}
 	mux := http.NewServeMux()
 	h := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
-	a := apiConfig{}
-	a.dbQueries = dbQueries
 	mux.Handle("/app/", a.middlewareMetricsInc(h)) //Hay que quitar el app porque queremos servir
 	//los archivos que están en el dir actual
 	mux.HandleFunc("GET /api/healthz", handlerReadiness) //no tienes que crear un directorio para el path
