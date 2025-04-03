@@ -7,3 +7,7 @@ VALUES(
     $1,
     $2
 ) RETURNING *;
+
+-- name: AllChirps :many
+SELECT * from chirps
+ORDER BY created_at;
