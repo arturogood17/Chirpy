@@ -28,6 +28,14 @@ type User struct {
 	Email     string    `json:"email"`
 }
 
+type Chirp struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
 func main() {
 	const port = "8080"
 	godotenv.Load(".env")
@@ -51,6 +59,7 @@ func main() {
 	//los archivos que están en el dir actual
 	mux.HandleFunc("GET /api/healthz", handlerReadiness) //no tienes que crear un directorio para el path
 	mux.HandleFunc("GET /admin/metrics", a.HandlerMetrics)
+	mux.HandleFunc("GET /api/chirps", a.AllChirps)
 	mux.HandleFunc("POST /admin/reset", a.HandlerReset)
 	mux.HandleFunc("POST /api/users", a.HandlerUser)
 	mux.HandleFunc("POST /api/chirps", a.HandlerChirps)
