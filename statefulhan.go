@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/arturogood17/Chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
 func (a *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -63,28 +67,48 @@ func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 	respondWithJson(res, 201, new_user)
 }
 
-func HandlerChirps(res http.ResponseWriter, req *http.Request) {
-	type JsonBody struct {
-		Body string `json:"body"`
+func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
+	type Chirp struct {
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
 	}
-	type ValidR struct {
-		CleanedBody string `json:"cleaned_body"`
+
+	type resChirp struct {
+		ID        string    `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
-	jb := JsonBody{}
-	if err := decoder.Decode(&jb); err != nil {
+	chirp := Chirp{}
+	if err := decoder.Decode(&chirp); err != nil {
 		respondWithError(res, 500, "Error decoding JSON", err)
 		return
 	}
 
-	if len(jb.Body) > 140 || len(jb.Body) == 0 {
+	if len(chirp.Body) > 140 || len(chirp.Body) == 0 {
 		respondWithError(res, http.StatusBadGateway, "Chirp is too long or is empty", nil)
 		return
 	}
-	bodyVal := WordValidation(jb.Body)
-	valid := ValidR{
-		CleanedBody: bodyVal,
+	bodyVal := WordValidation(chirp.Body)
+
+	new_chirp, err := a.dbQueries.CreateChirps(context.Background(), database.CreateChirpsParams{
+		Body:   bodyVal,
+		UserID: chirp.UserID,
+	})
+
+	if err != nil {
+		respondWithError(res, 500, "Couldn't create the chirp", err)
+		return
 	}
-	respondWithJson(res, 200, valid)
+	nc := resChirp{
+		ID:        new_chirp.ID.String(),
+		CreatedAt: new_chirp.CreatedAt,
+		UpdatedAt: new_chirp.UpdatedAt,
+		Body:      new_chirp.Body,
+		UserID:    new_chirp.UserID,
+	}
+	respondWithJson(res, 201, nc)
 }
