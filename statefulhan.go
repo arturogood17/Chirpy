@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/arturogood17/Chirpy/internal/database"
 	"github.com/google/uuid"
@@ -68,21 +67,13 @@ func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
-	type Chirp struct {
+	type reqChirp struct {
 		Body   string    `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
 	}
 
-	type resChirp struct {
-		ID        string    `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Body      string    `json:"body"`
-		UserID    uuid.UUID `json:"user_id"`
-	}
-
 	decoder := json.NewDecoder(req.Body)
-	chirp := Chirp{}
+	chirp := reqChirp{}
 	if err := decoder.Decode(&chirp); err != nil {
 		respondWithError(res, 500, "Error decoding JSON", err)
 		return
@@ -103,7 +94,7 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 		respondWithError(res, 500, "Couldn't create the chirp", err)
 		return
 	}
-	nc := resChirp{
+	nc := Chirp{
 		ID:        new_chirp.ID.String(),
 		CreatedAt: new_chirp.CreatedAt,
 		UpdatedAt: new_chirp.UpdatedAt,
@@ -111,4 +102,24 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 		UserID:    new_chirp.UserID,
 	}
 	respondWithJson(res, 201, nc)
+}
+
+func (a *apiConfig) AllChirps(res http.ResponseWriter, req *http.Request) {
+	chirps, err := a.dbQueries.AllChirps(context.Background())
+	if err != nil {
+		respondWithError(res, 500, "Error retrieving the all chirps from database", err)
+		return
+	}
+	var slice_chirps []Chirp
+	for _, chirp := range chirps {
+		nc := Chirp{
+			ID:        chirp.ID.String(),
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
+		}
+		slice_chirps = append(slice_chirps, nc)
+	}
+	respondWithJson(res, 200, slice_chirps)
 }
