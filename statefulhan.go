@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -26,56 +28,63 @@ func (a *apiConfig) HandlerMetrics(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) HandlerReset(res http.ResponseWriter, req *http.Request) {
-	a.hits.Store(0)
-	res.WriteHeader(http.StatusOK)
-	res.Write([]byte("Hits reset to 0"))
+	if a.PLATFORM != "dev" {
+		log.Fatal("403 Forbidden")
+	}
+	if err := a.dbQueries.DeleteUsers(context.Background()); err != nil {
+		log.Fatalf("error deleting the users from the database")
+	}
+}
+
+func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
+	if req.Body == nil {
+		respondWithError(res, http.StatusBadRequest, "An email is needed to create an user", nil)
+	}
+	type UserCreation struct {
+		Email string `json:"email"`
+	}
+	var email UserCreation
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&email); err != nil {
+		respondWithError(res, 500, "Error decoding Json", err)
+		return
+	}
+	user, err := a.dbQueries.CreateUser(context.Background(), email.Email)
+	if err != nil {
+		respondWithError(res, 500, "Error creating user", err)
+		return
+	}
+	new_user := User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+	respondWithJson(res, 201, new_user)
 }
 
 func HandlerChirps(res http.ResponseWriter, req *http.Request) {
 	type JsonBody struct {
 		Body string `json:"body"`
 	}
-	type ErrorChirp struct {
-		Error string `json:"error"`
-	}
 	type ValidR struct {
 		CleanedBody string `json:"cleaned_body"`
 	}
+
 	decoder := json.NewDecoder(req.Body)
 	jb := JsonBody{}
 	if err := decoder.Decode(&jb); err != nil {
-		res.WriteHeader(500)
-		fmt.Printf("error al decodificar el request body: %v", err)
+		respondWithError(res, 500, "Error decoding JSON", err)
 		return
 	}
+
 	if len(jb.Body) > 140 || len(jb.Body) == 0 {
-		er := ErrorChirp{
-			Error: "Chirp is too long or is empty",
-		}
-		enc, err := json.Marshal(er)
-		if err != nil {
-			res.WriteHeader(500)
-			fmt.Printf("Something went wrong: %v", err)
-			return
-		}
-		res.WriteHeader(400)
-		res.Write(enc)
+		respondWithError(res, http.StatusBadGateway, "Chirp is too long or is empty", nil)
 		return
 	}
-	bodyVal, err := WordValidation(jb.Body)
-	if err != nil {
-		fmt.Println(err)
-		res.WriteHeader(400)
-		return
-	}
+	bodyVal := WordValidation(jb.Body)
 	valid := ValidR{
 		CleanedBody: bodyVal,
 	}
-	val, err := json.Marshal(valid)
-	if err != nil {
-		res.WriteHeader(500)
-		return
-	}
-	res.WriteHeader(200)
-	res.Write(val)
+	respondWithJson(res, 200, valid)
 }
