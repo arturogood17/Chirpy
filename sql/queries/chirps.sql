@@ -11,3 +11,7 @@ VALUES(
 -- name: AllChirps :many
 SELECT * from chirps
 ORDER BY created_at;
+
+-- name: SingleChirp :one
+SELECT * from chirps
+WHERE id = $1;
