@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/arturogood17/Chirpy/internal/database"
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -22,7 +21,7 @@ type apiConfig struct {
 }
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
+	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
@@ -33,7 +32,7 @@ type Chirp struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Body      string    `json:"body"`
-	UserID    uuid.UUID `json:"user_id"`
+	UserID    string    `json:"user_id"`
 }
 
 func main() {
@@ -60,6 +59,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", handlerReadiness) //no tienes que crear un directorio para el path
 	mux.HandleFunc("GET /admin/metrics", a.HandlerMetrics)
 	mux.HandleFunc("GET /api/chirps", a.AllChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", a.SingleChirp)
 	mux.HandleFunc("POST /admin/reset", a.HandlerReset)
 	mux.HandleFunc("POST /api/users", a.HandlerUser)
 	mux.HandleFunc("POST /api/chirps", a.HandlerChirps)
