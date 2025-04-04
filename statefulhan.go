@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/arturogood17/Chirpy/internal/auth"
 	"github.com/arturogood17/Chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -41,18 +42,30 @@ func (a *apiConfig) HandlerReset(res http.ResponseWriter, req *http.Request) {
 
 func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 	if req.Body == nil {
-		respondWithError(res, http.StatusBadRequest, "An email is needed to create an user", nil)
+		respondWithError(res, http.StatusBadRequest, "Empty request", nil)
 	}
 	type UserCreation struct {
-		Email string `json:"email"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
-	var email UserCreation
+	var UserData UserCreation
 	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&email); err != nil {
+	if err := decoder.Decode(&UserData); err != nil {
 		respondWithError(res, 500, "Error decoding Json", err)
 		return
 	}
-	user, err := a.dbQueries.CreateUser(context.Background(), email.Email)
+	if UserData.Password == "" {
+		respondWithError(res, 400, "User needs a password", nil)
+		return
+	}
+	hashedPass, err := auth.HashPassword(UserData.Password)
+	if err != nil {
+		respondWithError(res, 500, "Error hashing the password", err)
+	}
+	user, err := a.dbQueries.CreateUser(context.Background(), database.CreateUserParams{
+		Email:          UserData.Email,
+		HashedPassword: hashedPass,
+	})
 	if err != nil {
 		respondWithError(res, 500, "Error creating user", err)
 		return
@@ -149,4 +162,36 @@ func (a *apiConfig) SingleChirp(res http.ResponseWriter, req *http.Request) {
 		UserID:    chirp.UserID.String(),
 	}
 	respondWithJson(res, 200, nc)
+}
+
+func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
+	if req.Body == nil {
+		respondWithError(res, http.StatusBadRequest, "Empty request", nil)
+	}
+	type UserCreation struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	var UserData UserCreation
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&UserData); err != nil {
+		respondWithError(res, 500, "Error decoding Json", err)
+		return
+	}
+	user, err := a.dbQueries.SearchUser(context.Background(), UserData.Email)
+	if err != nil {
+		respondWithError(res, 401, "Incorrect email or password", err)
+		return
+	}
+	if err = auth.CheckPasswordHash(user.HashedPassword, UserData.Password); err != nil {
+		respondWithError(res, 401, "Incorrect email or password", err)
+		return
+	}
+	logged_in := User{
+		ID:        user.ID.String(),
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+	respondWithJson(res, 200, logged_in)
 }
