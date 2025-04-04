@@ -58,7 +58,7 @@ func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	new_user := User{
-		ID:        user.ID,
+		ID:        user.ID.String(),
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
@@ -99,7 +99,7 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 		CreatedAt: new_chirp.CreatedAt,
 		UpdatedAt: new_chirp.UpdatedAt,
 		Body:      new_chirp.Body,
-		UserID:    new_chirp.UserID,
+		UserID:    new_chirp.UserID.String(),
 	}
 	respondWithJson(res, 201, nc)
 }
@@ -117,9 +117,36 @@ func (a *apiConfig) AllChirps(res http.ResponseWriter, req *http.Request) {
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
 			Body:      chirp.Body,
-			UserID:    chirp.UserID,
+			UserID:    chirp.UserID.String(),
 		}
 		slice_chirps = append(slice_chirps, nc)
 	}
 	respondWithJson(res, 200, slice_chirps)
+}
+
+func (a *apiConfig) SingleChirp(res http.ResponseWriter, req *http.Request) {
+	pathValue := req.PathValue("chirpID")
+	if pathValue == "" {
+		respondWithError(res, 404, "Chirp not found", nil)
+		return
+	}
+	chirpID, err := uuid.Parse(pathValue)
+	if err != nil {
+		respondWithError(res, 500, "Error parsing the chirpID", err)
+		return
+	}
+
+	chirp, err := a.dbQueries.SingleChirp(context.Background(), chirpID)
+	if err != nil {
+		respondWithError(res, 500, "Error fetching the desired chirp", err)
+		return
+	}
+	nc := Chirp{
+		ID:        chirp.ID.String(),
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID.String(),
+	}
+	respondWithJson(res, 200, nc)
 }
