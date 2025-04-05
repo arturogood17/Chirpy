@@ -5,30 +5,35 @@ import (
 )
 
 func Test_HashingPasswords(t *testing.T) {
+	password_1 := "Pepito1234"
+	hashedp1, _ := HashPassword(password_1)
+	password_2 := "Pepito2569"
+	hashedp2, _ := HashPassword(password_2)
 	cases := []struct {
-		input    string
-		expected error
+		password string
+		hash     string
+		WantErr  bool
 	}{
 		{
-			input:    "password123",
-			expected: nil,
+			password: password_1,
+			hash:     hashedp1,
+			WantErr:  false,
 		},
 		{
-			input:    "password",
-			expected: nil,
+			password: password_2,
+			hash:     hashedp2,
+			WantErr:  false,
 		},
 		{
-			input:    "prototype13",
-			expected: nil,
+			password: password_1,
+			hash:     hashedp2,
+			WantErr:  true,
 		},
 	}
 	for _, test := range cases {
-		t.Run(test.input, func(t *testing.T) {
-			actual, err := HashPassword(test.input)
-			if err != nil {
-				t.Errorf("Error when doing the test: %v", err)
-			}
-			if err = CheckPasswordHash(actual, test.input); err != nil {
+		t.Run(test.password, func(t *testing.T) {
+			err := CheckPasswordHash(test.hash, test.password)
+			if (err != nil) != test.WantErr {
 				t.Errorf("Test failed. Check password hashing failed: %v", err)
 			}
 		})
