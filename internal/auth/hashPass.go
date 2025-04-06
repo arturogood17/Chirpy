@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,7 +15,7 @@ import (
 type TokenType string
 
 const (
-	tokentype TokenType = "chirpy-access"
+	Tokentype TokenType = "chirpy-access"
 )
 
 func HashPassword(password string) (string, error) {
@@ -34,7 +35,7 @@ func CheckPasswordHash(hash, password string) error {
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Issuer:    "chirpy-access",
+		Issuer:    string(Tokentype),
 		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiresIn)),
 		Subject:   userID.String(),
@@ -43,32 +44,35 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 }
 
 func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
-	var userID uuid.UUID
 	claims := jwt.RegisteredClaims{}
 	tokenVal, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(tokenSecret), nil
 	})
 	if err != nil {
-		return userID, err
+		return uuid.Nil, err
 	}
 	ID, err := tokenVal.Claims.GetSubject()
 	if err != nil {
-		return userID, err
+		return uuid.Nil, err
 	}
 	issuer, err := tokenVal.Claims.GetIssuer()
 	if err != nil {
-		return userID, err
+		return uuid.Nil, err
 	}
-	if issuer != string(tokentype) {
-		return userID, errors.New("invalid issuer")
+	if issuer != string(Tokentype) {
+		return uuid.Nil, errors.New("invalid issuer")
 	}
 	id, err := uuid.Parse(ID)
-	if issuer != string(tokentype) {
-		return userID, err
+	if err != err {
+		return uuid.Nil, err
 	}
 	return id, nil
 }
 
 func GetBearerToken(headers http.Header) (string, error) {
-	headers.Get("Authorization")
+	auth := strings.TrimPrefix(headers.Get("Authorization"), "Bearer ")
+	if auth == "" {
+		return "", errors.New("no authentication token was provided")
+	}
+	return auth, nil
 }
