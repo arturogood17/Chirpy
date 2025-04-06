@@ -18,6 +18,7 @@ type apiConfig struct {
 	hits      atomic.Int32
 	dbQueries *database.Queries
 	PLATFORM  string
+	SECRET    string
 }
 
 type User struct {
@@ -42,6 +43,14 @@ func main() {
 	if dbURL == "" {
 		log.Fatal("db_url must be set")
 	}
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("Platform must be set")
+	}
+	secret := os.Getenv("SECRET")
+	if secret == "" {
+		log.Fatal("JWT_SECRET environment variable is not set")
+	}
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Error opening the database: %v", err)
@@ -50,7 +59,8 @@ func main() {
 	a := apiConfig{
 		hits:      atomic.Int32{},
 		dbQueries: dbQueries,
-		PLATFORM:  os.Getenv("PLATFORM"),
+		PLATFORM:  platform,
+		SECRET:    secret,
 	}
 	mux := http.NewServeMux()
 	h := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
