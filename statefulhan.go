@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/arturogood17/Chirpy/internal/auth"
 	"github.com/arturogood17/Chirpy/internal/database"
@@ -81,8 +82,17 @@ func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 
 func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 	type reqChirp struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
+	}
+	TokenAuth, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(res, 401, "Coukldn't find JWT", err)
+		return
+	}
+	userID, err := auth.ValidateJWT(TokenAuth, a.SECRET)
+	if err != nil {
+		respondWithError(res, 401, "O este", err)
+		return
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -91,7 +101,6 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 		respondWithError(res, 500, "Error decoding JSON", err)
 		return
 	}
-
 	if len(chirp.Body) > 140 || len(chirp.Body) == 0 {
 		respondWithError(res, http.StatusBadGateway, "Chirp is too long or is empty", nil)
 		return
@@ -100,7 +109,7 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 
 	new_chirp, err := a.dbQueries.CreateChirps(context.Background(), database.CreateChirpsParams{
 		Body:   bodyVal,
-		UserID: chirp.UserID,
+		UserID: userID,
 	})
 
 	if err != nil {
@@ -168,11 +177,17 @@ func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
 	if req.Body == nil {
 		respondWithError(res, http.StatusBadRequest, "Empty request", nil)
 	}
-	type UserCreation struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+	type LoginData struct {
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
-	var UserData UserCreation
+
+	type response struct {
+		User
+		Token string `json:"token"`
+	}
+	var UserData LoginData
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&UserData); err != nil {
 		respondWithError(res, 500, "Error decoding Json", err)
@@ -187,11 +202,27 @@ func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
 		respondWithError(res, 401, "Incorrect email or password", err)
 		return
 	}
-	logged_in := User{
-		ID:        user.ID.String(),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+	var token string
+	if UserData.ExpiresInSeconds == 0 || UserData.ExpiresInSeconds > 3600 {
+		token, err = auth.MakeJWT(user.ID, a.SECRET, time.Hour)
+		if err != nil {
+			respondWithError(res, 500, "Error creating token", err)
+		}
+	} else {
+		token, err = auth.MakeJWT(user.ID, a.SECRET, time.Duration(UserData.ExpiresInSeconds))
+		if err != nil {
+			respondWithError(res, 500, "Error creating token", err)
+		}
 	}
-	respondWithJson(res, 200, logged_in)
+
+	r := response{
+		User: User{
+			ID:        user.ID.String(),
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
+		},
+		Token: token,
+	}
+	respondWithJson(res, 200, r)
 }
