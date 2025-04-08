@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -36,7 +35,7 @@ func (a *apiConfig) HandlerReset(res http.ResponseWriter, req *http.Request) {
 	if a.PLATFORM != "dev" {
 		log.Fatal("403 Forbidden")
 	}
-	if err := a.dbQueries.DeleteUsers(context.Background()); err != nil {
+	if err := a.dbQueries.DeleteUsers(req.Context()); err != nil {
 		log.Fatalf("error deleting the users from the database")
 	}
 }
@@ -63,7 +62,7 @@ func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		respondWithError(res, 500, "Error hashing the password", err)
 	}
-	user, err := a.dbQueries.CreateUser(context.Background(), database.CreateUserParams{
+	user, err := a.dbQueries.CreateUser(req.Context(), database.CreateUserParams{
 		Email:          UserData.Email,
 		HashedPassword: hashedPass,
 	})
@@ -107,7 +106,7 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 	}
 	bodyVal := WordValidation(chirp.Body)
 
-	new_chirp, err := a.dbQueries.CreateChirps(context.Background(), database.CreateChirpsParams{
+	new_chirp, err := a.dbQueries.CreateChirps(req.Context(), database.CreateChirpsParams{
 		Body:   bodyVal,
 		UserID: userID,
 	})
@@ -127,7 +126,7 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) AllChirps(res http.ResponseWriter, req *http.Request) {
-	chirps, err := a.dbQueries.AllChirps(context.Background())
+	chirps, err := a.dbQueries.AllChirps(req.Context())
 	if err != nil {
 		respondWithError(res, 500, "Error retrieving the all chirps from database", err)
 		return
@@ -158,7 +157,7 @@ func (a *apiConfig) SingleChirp(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	chirp, err := a.dbQueries.SingleChirp(context.Background(), chirpID)
+	chirp, err := a.dbQueries.SingleChirp(req.Context(), chirpID)
 	if err != nil {
 		respondWithError(res, 500, "Error fetching the desired chirp", err)
 		return
@@ -178,14 +177,14 @@ func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
 		respondWithError(res, http.StatusBadRequest, "Empty request", nil)
 	}
 	type LoginData struct {
-		Password         string `json:"password"`
-		Email            string `json:"email"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 
 	type response struct {
 		User
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 	var UserData LoginData
 	decoder := json.NewDecoder(req.Body)
@@ -193,7 +192,7 @@ func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
 		respondWithError(res, 500, "Error decoding Json", err)
 		return
 	}
-	user, err := a.dbQueries.SearchUser(context.Background(), UserData.Email)
+	user, err := a.dbQueries.SearchUser(req.Context(), UserData.Email)
 	if err != nil {
 		respondWithError(res, 401, "Incorrect email or password", err)
 		return
@@ -202,17 +201,26 @@ func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
 		respondWithError(res, 401, "Incorrect email or password", err)
 		return
 	}
-	var token string
-	if UserData.ExpiresInSeconds == 0 || UserData.ExpiresInSeconds > 3600 {
-		token, err = auth.MakeJWT(user.ID, a.SECRET, time.Hour)
-		if err != nil {
-			respondWithError(res, 500, "Error creating token", err)
-		}
-	} else {
-		token, err = auth.MakeJWT(user.ID, a.SECRET, time.Duration(UserData.ExpiresInSeconds))
-		if err != nil {
-			respondWithError(res, 500, "Error creating token", err)
-		}
+	token, err := auth.MakeJWT(user.ID, a.SECRET, time.Hour)
+	if err != nil {
+		respondWithError(res, 500, "Error creating token", err)
+		return
+	}
+
+	Rtoken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(res, 500, "Couldn't create refresh token", err)
+		return
+	}
+
+	_, err = a.dbQueries.CreateRefreshToken(req.Context(), database.CreateRefreshTokenParams{
+		Token:     Rtoken,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().Add(1440 * time.Hour),
+	})
+	if err != nil {
+		respondWithError(res, 500, "Couldn't save refresh token in database", err)
+		return
 	}
 
 	r := response{
@@ -222,7 +230,46 @@ func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
 		},
-		Token: token,
+		Token:        token,
+		RefreshToken: Rtoken,
 	}
 	respondWithJson(res, 200, r)
+}
+
+func (a *apiConfig) RefreshToken(res http.ResponseWriter, req *http.Request) {
+	type OneHToken struct {
+		Token string `json:"token"`
+	}
+	refreshToken, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(res, 500, "No refresh token found in request", err)
+		return
+	}
+	user, err := a.dbQueries.GetUserFromRefreshToken(req.Context(), refreshToken)
+	if err != nil {
+		respondWithError(res, 401, "Error getting user from refresh token", err)
+		return
+	}
+	newAtoken, err := auth.MakeJWT(user.ID, a.SECRET, time.Hour)
+	if err != nil {
+		respondWithError(res, 500, "Error creating a new access token", err)
+		return
+	}
+	respondWithJson(res, 200, OneHToken{
+		Token: newAtoken,
+	})
+
+}
+
+func (a *apiConfig) Revoke(res http.ResponseWriter, req *http.Request) {
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(res, 500, "No refresh token found in request", err)
+		return
+	}
+	if err = a.dbQueries.Revoke(req.Context(), token); err != nil {
+		respondWithError(res, 500, "Error revoking token", err)
+		return
+	}
+	res.WriteHeader(http.StatusNoContent)
 }
