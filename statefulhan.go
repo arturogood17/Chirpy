@@ -273,3 +273,49 @@ func (a *apiConfig) Revoke(res http.ResponseWriter, req *http.Request) {
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
+
+func (a *apiConfig) UpdateUser(res http.ResponseWriter, req *http.Request) {
+	if req.Body == nil {
+		respondWithError(res, 401, "Body of request missing", nil)
+		return
+	}
+	type UpdatedInfo struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	var UpInfo UpdatedInfo
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&UpInfo); err != nil {
+		respondWithError(res, 500, "Error decoding body of request", err)
+	}
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(res, 401, "no token found", err)
+		return
+	}
+	user, err := auth.ValidateJWT(token, a.SECRET)
+	if err != nil {
+		respondWithError(res, 401, "Invalid token", err)
+		return
+	}
+	hashedP, err := auth.HashPassword(UpInfo.Password)
+	if err != nil {
+		respondWithError(res, 500, "Error hashing password", err)
+		return
+	}
+	updatedU, err := a.dbQueries.UpdateUser(req.Context(), database.UpdateUserParams{Email: UpInfo.Email,
+		HashedPassword: hashedP,
+		ID:             user,
+	})
+	if err != nil {
+		respondWithError(res, 500, "Error updating user", err)
+		return
+	}
+	respondWithJson(res, 200, User{
+		ID:        updatedU.ID.String(),
+		CreatedAt: updatedU.CreatedAt,
+		UpdatedAt: updatedU.UpdatedAt,
+		Email:     UpInfo.Email,
+	})
+
+}
