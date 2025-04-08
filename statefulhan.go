@@ -159,7 +159,7 @@ func (a *apiConfig) SingleChirp(res http.ResponseWriter, req *http.Request) {
 
 	chirp, err := a.dbQueries.SingleChirp(req.Context(), chirpID)
 	if err != nil {
-		respondWithError(res, 500, "Error fetching the desired chirp", err)
+		respondWithError(res, 404, "Error fetching the desired chirp", err)
 		return
 	}
 	nc := Chirp{
@@ -317,5 +317,7 @@ func (a *apiConfig) UpdateUser(res http.ResponseWriter, req *http.Request) {
 		UpdatedAt: updatedU.UpdatedAt,
 		Email:     UpInfo.Email,
 	})
+}
 
+func (a *apiConfig) DeleteChirp(res http.ResponseWriter, req *http.Request) {
 }
