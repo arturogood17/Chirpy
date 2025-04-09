@@ -16,7 +16,6 @@ ORDER BY created_at;
 SELECT * FROM chirps
 WHERE id = $1;
 
--- name: DeleteChirp :one
+-- name: DeleteChirp :exec
 DELETE FROM chirps
-WHERE id = $1 and user_id = $2
-RETURNING id;
+WHERE id = $1;
