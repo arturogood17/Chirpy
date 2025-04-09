@@ -19,6 +19,7 @@ type apiConfig struct {
 	dbQueries *database.Queries
 	PLATFORM  string
 	SECRET    string
+	POLKAKEY  string
 }
 
 type User struct {
@@ -52,6 +53,10 @@ func main() {
 	if secret == "" {
 		log.Fatal("JWT_SECRET environment variable is not set")
 	}
+	polka := os.Getenv("POLKAKEY")
+	if polka == "" {
+		log.Fatal("JWT_POLKA environment variable is not set")
+	}
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Error opening the database: %v", err)
@@ -62,6 +67,7 @@ func main() {
 		dbQueries: dbQueries,
 		PLATFORM:  platform,
 		SECRET:    secret,
+		POLKAKEY:  polka,
 	}
 	mux := http.NewServeMux()
 	h := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
