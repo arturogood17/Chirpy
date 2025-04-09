@@ -320,4 +320,37 @@ func (a *apiConfig) UpdateUser(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) DeleteChirp(res http.ResponseWriter, req *http.Request) {
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondWithError(res, 401, "Token not found", err)
+		return
+	}
+	ValUser, err := auth.ValidateJWT(token, a.SECRET)
+	if err != nil {
+		respondWithError(res, 403, "Invalid token", err)
+		return
+	}
+	pathValue := req.PathValue("chirpID")
+	if pathValue == "" {
+		respondWithError(res, 404, "Chirp not found", nil)
+		return
+	}
+	chirpID, err := uuid.Parse(pathValue)
+	if err != nil {
+		respondWithError(res, 500, "Couldn't parse chirpID", err)
+		return
+	}
+
+	deleted, err := a.dbQueries.DeleteChirp(req.Context(), database.DeleteChirpParams{
+		ID:     chirpID,
+		UserID: ValUser,
+	})
+	if err != nil {
+		respondWithError(res, 403, "There was an error deleting the chirp", err)
+		return
+	}
+	if deleted == uuid.Nil {
+		respondWithError(res, 404, "Chirp not found", nil)
+	}
+	res.WriteHeader(204)
 }
