@@ -84,3 +84,11 @@ func GetBearerToken(headers http.Header) (string, error) {
 	}
 	return auth, nil
 }
+
+func GetAPIKey(headers http.Header) (string, error) {
+	polkaKey := strings.TrimPrefix(headers.Get("Authorization"), "ApiKey ")
+	if polkaKey == "" {
+		return "", errors.New("no authentication polka key was provided")
+	}
+	return polkaKey, nil
+}
