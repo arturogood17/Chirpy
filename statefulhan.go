@@ -128,11 +128,31 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) AllChirps(res http.ResponseWriter, req *http.Request) {
-	chirps, err := a.dbQueries.AllChirps(req.Context())
-	if err != nil {
-		respondWithError(res, 500, "Error retrieving the all chirps from database", err)
-		return
+	author_id := req.URL.Query().Get("author_id")
+	if author_id != "" {
+		aID, err := uuid.Parse(author_id)
+		if err != nil {
+			respondWithError(res, 500, "Error parsing author_id", err)
+			return
+		}
+		chirps, err := a.dbQueries.ChirpByAuthor(req.Context(), aID)
+		if err != nil {
+			respondWithError(res, 404, "Error getting chirps", err)
+		}
+		SChirpsByAuthor := MappingChirps(chirps)
+		respondWithJson(res, 200, SChirpsByAuthor)
+	} else {
+		chirps, err := a.dbQueries.AllChirps(req.Context())
+		if err != nil {
+			respondWithError(res, 500, "Error retrieving the all chirps from database", err)
+			return
+		}
+		SChirps := MappingChirps(chirps)
+		respondWithJson(res, 200, SChirps)
 	}
+}
+
+func MappingChirps(chirps []database.Chirp) []Chirp {
 	var slice_chirps []Chirp
 	for _, chirp := range chirps {
 		nc := Chirp{
@@ -144,7 +164,7 @@ func (a *apiConfig) AllChirps(res http.ResponseWriter, req *http.Request) {
 		}
 		slice_chirps = append(slice_chirps, nc)
 	}
-	respondWithJson(res, 200, slice_chirps)
+	return slice_chirps
 }
 
 func (a *apiConfig) SingleChirp(res http.ResponseWriter, req *http.Request) {
@@ -361,6 +381,15 @@ func (a *apiConfig) DeleteChirp(res http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) RedChirpy(res http.ResponseWriter, req *http.Request) {
+	polkaK, err := auth.GetAPIKey(req.Header)
+	if err != nil {
+		respondWithError(res, 401, "authentication key for polka was not found", err)
+		return
+	}
+	if polkaK != a.POLKAKEY {
+		respondWithError(res, 401, "Not authorized", nil)
+		return
+	}
 	type RedChirpyRequest struct {
 		Event string `json:"event"`
 		Data  struct {
