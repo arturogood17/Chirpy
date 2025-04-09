@@ -61,6 +61,7 @@ func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 	hashedPass, err := auth.HashPassword(UserData.Password)
 	if err != nil {
 		respondWithError(res, 500, "Error hashing the password", err)
+		return
 	}
 	user, err := a.dbQueries.CreateUser(req.Context(), database.CreateUserParams{
 		Email:          UserData.Email,
@@ -71,10 +72,11 @@ func (a *apiConfig) HandlerUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	new_user := User{
-		ID:        user.ID.String(),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		ID:          user.ID.String(),
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed.Bool,
 	}
 	respondWithJson(res, 201, new_user)
 }
@@ -225,10 +227,11 @@ func (a *apiConfig) UserLogin(res http.ResponseWriter, req *http.Request) {
 
 	r := response{
 		User: User{
-			ID:        user.ID.String(),
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Email:     user.Email,
+			ID:          user.ID.String(),
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed.Bool,
 		},
 		Token:        token,
 		RefreshToken: Rtoken,
@@ -312,24 +315,15 @@ func (a *apiConfig) UpdateUser(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	respondWithJson(res, 200, User{
-		ID:        updatedU.ID.String(),
-		CreatedAt: updatedU.CreatedAt,
-		UpdatedAt: updatedU.UpdatedAt,
-		Email:     UpInfo.Email,
+		ID:          updatedU.ID.String(),
+		CreatedAt:   updatedU.CreatedAt,
+		UpdatedAt:   updatedU.UpdatedAt,
+		Email:       UpInfo.Email,
+		IsChirpyRed: updatedU.IsChirpyRed.Bool,
 	})
 }
 
 func (a *apiConfig) DeleteChirp(res http.ResponseWriter, req *http.Request) {
-	token, err := auth.GetBearerToken(req.Header)
-	if err != nil {
-		respondWithError(res, 401, "Token not found", err)
-		return
-	}
-	ValUser, err := auth.ValidateJWT(token, a.SECRET)
-	if err != nil {
-		respondWithError(res, 403, "Invalid token", err)
-		return
-	}
 	pathValue := req.PathValue("chirpID")
 	if pathValue == "" {
 		respondWithError(res, 404, "Chirp not found", nil)
@@ -340,17 +334,56 @@ func (a *apiConfig) DeleteChirp(res http.ResponseWriter, req *http.Request) {
 		respondWithError(res, 500, "Couldn't parse chirpID", err)
 		return
 	}
-
-	deleted, err := a.dbQueries.DeleteChirp(req.Context(), database.DeleteChirpParams{
-		ID:     chirpID,
-		UserID: ValUser,
-	})
+	token, err := auth.GetBearerToken(req.Header)
 	if err != nil {
-		respondWithError(res, 403, "There was an error deleting the chirp", err)
+		respondWithError(res, 401, "Token not found", err)
 		return
 	}
-	if deleted == uuid.Nil {
-		respondWithError(res, 404, "Chirp not found", nil)
+	ValUser, err := auth.ValidateJWT(token, a.SECRET)
+	if err != nil {
+		respondWithError(res, 403, "Invalid token", err)
+		return
+	}
+	chirp, err := a.dbQueries.SingleChirp(req.Context(), chirpID)
+	if err != nil {
+		respondWithError(res, 404, "Chirp not found", err)
+		return
+	}
+	if chirp.UserID != ValUser {
+		respondWithError(res, 403, "You can't delete this chirp", nil)
+		return
+	}
+	if err = a.dbQueries.DeleteChirp(req.Context(), chirpID); err != nil {
+		respondWithError(res, 500, "Couldn't delete chirp", err)
+		return
 	}
 	res.WriteHeader(204)
+}
+
+func (a *apiConfig) RedChirpy(res http.ResponseWriter, req *http.Request) {
+	type RedChirpyRequest struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserID string `json:"user_id"`
+		} `json:"data"`
+	}
+	var red RedChirpyRequest
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&red); err != nil {
+		respondWithError(res, 500, "Error decoding body of request", err)
+	}
+	if red.Event != "user.upgraded" {
+		res.WriteHeader(204)
+		return
+	}
+	userID, err := uuid.Parse(red.Data.UserID)
+	if err != nil {
+		respondWithError(res, 500, "error parsing userID", err)
+		return
+	}
+	if err = a.dbQueries.WelcomeToChirpy(req.Context(), userID); err != nil {
+		respondWithError(res, 404, "User not found", err)
+		return
+	}
+	respondWithJson(res, 204, nil)
 }
