@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/arturogood17/Chirpy/internal/auth"
@@ -129,6 +130,7 @@ func (a *apiConfig) HandlerChirps(res http.ResponseWriter, req *http.Request) {
 
 func (a *apiConfig) AllChirps(res http.ResponseWriter, req *http.Request) {
 	author_id := req.URL.Query().Get("author_id")
+	sorting := req.URL.Query().Get("sort")
 	if author_id != "" {
 		aID, err := uuid.Parse(author_id)
 		if err != nil {
@@ -148,6 +150,9 @@ func (a *apiConfig) AllChirps(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 		SChirps := MappingChirps(chirps)
+		if sorting == "desc" {
+			sort.Slice(SChirps, func(i, j int) bool { return SChirps[j].CreatedAt.Before(SChirps[i].CreatedAt) })
+		}
 		respondWithJson(res, 200, SChirps)
 	}
 }
