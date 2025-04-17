@@ -13,7 +13,8 @@ func main() {
 		Handler: mux,
 		Addr:    ":" + port,
 	}
-	mux.Handle("/", http.FileServer(http.Dir("."))) //sirve todo lo que están en las carpetas
+	mux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir("."))))
+	mux.HandleFunc("/healthz", hReadiness) //sirve todo lo que están en las carpetas
 	err := srvr.ListenAndServe()
 	if err != nil {
 		log.Fatalf("couldn't listen and serve from server - %v", err)
