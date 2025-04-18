@@ -19,9 +19,9 @@ func main() {
 		Addr:    ":" + port,
 	}
 	mux.Handle("/app/", cfg.middlewareConfig(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
-	mux.HandleFunc("/metrics", cfg.handlerServerHits)
-	mux.HandleFunc("/reset", cfg.handlerServerHitsReset)
-	mux.HandleFunc("/healthz", hReadiness) //sirve todo lo que están en las carpetas
+	mux.HandleFunc("GET /metrics", cfg.handlerServerHits)
+	mux.HandleFunc("POST /reset", cfg.handlerServerHitsReset)
+	mux.HandleFunc("GET /healthz", hReadiness) //sirve todo lo que están en las carpetas
 	err := srvr.ListenAndServe()
 	if err != nil {
 		log.Fatalf("couldn't listen and serve from server - %v", err)
