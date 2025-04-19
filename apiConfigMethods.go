@@ -13,9 +13,14 @@ func (a *apiConfig) middlewareConfig(next http.Handler) http.Handler {
 }
 
 func (a *apiConfig) handlerServerHits(w http.ResponseWriter, req *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Add("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Hits: %v", a.serverHits.Load())))
+	w.Write([]byte(fmt.Sprintf(`<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+  </body>
+</html>`, a.serverHits.Load())))
 }
 
 func (a *apiConfig) handlerServerHitsReset(w http.ResponseWriter, req *http.Request) {
