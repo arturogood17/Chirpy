@@ -16,6 +16,7 @@ import (
 type apiConfig struct {
 	serverHits atomic.Int32
 	Queries    *database.Queries
+	PLATFORM   string
 }
 
 func main() {
@@ -27,8 +28,13 @@ func main() {
 	}
 	dbQueries := database.New(db)
 	const port = "8080"
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM must be set")
+	}
 	cfg := apiConfig{
-		Queries: dbQueries,
+		Queries:  dbQueries,
+		PLATFORM: platform,
 	}
 	mux := http.NewServeMux()
 	srvr := http.Server{
@@ -40,6 +46,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", cfg.handlerServerHitsReset)
 	mux.HandleFunc("GET /api/healthz", hReadiness)
 	mux.HandleFunc("POST /api/validate_chirp", hValChirpy)
+	mux.HandleFunc("POST /api/users", cfg.hUser)
 	err = srvr.ListenAndServe()
 	if err != nil {
 		log.Fatalf("couldn't listen and serve from server - %v", err)
