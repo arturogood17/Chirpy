@@ -45,8 +45,9 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", cfg.handlerServerHits)                                         //se agrego el path admin para uso interno
 	mux.HandleFunc("POST /admin/reset", cfg.handlerServerHitsReset)
 	mux.HandleFunc("GET /api/healthz", hReadiness)
-	mux.HandleFunc("POST /api/validate_chirp", hValChirpy)
 	mux.HandleFunc("POST /api/users", cfg.hUser)
+	mux.HandleFunc("POST /api/chirps", cfg.hChirp)
+	mux.HandleFunc("GET /api/chirps", cfg.hListChirps)
 	err = srvr.ListenAndServe()
 	if err != nil {
 		log.Fatalf("couldn't listen and serve from server - %v", err)
