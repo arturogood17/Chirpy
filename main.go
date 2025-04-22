@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/arturogood17/Chirpy/internal/database"
+	"github.com/joho/godotenv"
 
 	_ "github.com/lib/pq"
 )
@@ -18,6 +19,7 @@ type apiConfig struct {
 }
 
 func main() {
+	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
