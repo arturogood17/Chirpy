@@ -7,3 +7,6 @@ VALUES (
     $1
 )
 RETURNING *;
+
+-- name: ResetUsersTable :exec
+DELETE FROM users;
