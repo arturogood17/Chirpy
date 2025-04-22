@@ -24,7 +24,13 @@ func (a *apiConfig) handlerServerHits(w http.ResponseWriter, req *http.Request) 
 }
 
 func (a *apiConfig) handlerServerHitsReset(w http.ResponseWriter, req *http.Request) {
+	if a.PLATFORM != "dev" {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Reset is only allowed in dev environment."))
+		return
+	}
+	a.Queries.ResetUsersTable(req.Context())
 	a.serverHits.Store(0)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Hists reset to 0"))
+	w.Write([]byte("Users table reset"))
 }
