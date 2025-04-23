@@ -93,3 +93,24 @@ func (a *apiConfig) hListChirps(w http.ResponseWriter, req *http.Request) {
 	}
 	responWithJson(w, http.StatusOK, JsonedList)
 }
+
+func (a *apiConfig) hSingleChirp(w http.ResponseWriter, req *http.Request) {
+	StringID := req.PathValue("chirpID")
+	chirpID, err := uuid.Parse(StringID)
+	if err != nil {
+		respondErrorWriter(w, http.StatusInternalServerError, "Error parsing chirp", err)
+		return
+	}
+	retrievedChirp, err := a.Queries.SingleChirp(req.Context(), chirpID)
+	if err != nil {
+		respondErrorWriter(w, http.StatusNotFound, "No chirp found", err)
+		return
+	}
+	responWithJson(w, http.StatusOK, Chirp{
+		ID:        retrievedChirp.ID.String(),
+		CreatedAt: retrievedChirp.CreatedAt,
+		UpdatedAt: retrievedChirp.UpdatedAt,
+		Body:      retrievedChirp.Body,
+		UserID:    retrievedChirp.UserID.String(),
+	})
+}
