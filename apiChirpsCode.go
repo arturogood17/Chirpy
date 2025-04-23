@@ -98,7 +98,7 @@ func (a *apiConfig) hSingleChirp(w http.ResponseWriter, req *http.Request) {
 	StringID := req.PathValue("chirpID")
 	chirpID, err := uuid.Parse(StringID)
 	if err != nil {
-		respondErrorWriter(w, http.StatusInternalServerError, "Error parsing chirp", err)
+		respondErrorWriter(w, http.StatusBadRequest, "Invalid chirp id", err)
 		return
 	}
 	retrievedChirp, err := a.Queries.SingleChirp(req.Context(), chirpID)
