@@ -49,6 +49,7 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", cfg.hChirp)
 	mux.HandleFunc("GET /api/chirps", cfg.hListChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.hSingleChirp)
+	mux.HandleFunc("POST /api/login", cfg.hLogin)
 	err = srvr.ListenAndServe()
 	if err != nil {
 		log.Fatalf("couldn't listen and serve from server - %v", err)
