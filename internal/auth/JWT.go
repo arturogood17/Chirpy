@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -23,7 +24,7 @@ func MakeJWT(user uuid.UUID, tokenSecret string, expiresIn time.Duration) (strin
 
 func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	//Pasas un pointer a los Registered que pasaste arriba para que los llenes con los claims que pasaste
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (any, error) {
 		return []byte(tokenSecret), nil
 	})
 	if err != nil {
@@ -32,6 +33,13 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	userID, err := token.Claims.GetSubject()
 	if err != nil {
 		return uuid.Nil, err
+	}
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if issuer != "chirpy" {
+		return uuid.Nil, errors.New("invalid Issuer")
 	}
 	ID, err := uuid.Parse(userID)
 	if err != nil {
