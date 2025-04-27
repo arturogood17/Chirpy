@@ -17,6 +17,7 @@ type apiConfig struct {
 	serverHits atomic.Int32
 	Queries    *database.Queries
 	PLATFORM   string
+	SECRET     string
 }
 
 func main() {
@@ -32,9 +33,14 @@ func main() {
 	if platform == "" {
 		log.Fatal("PLATFORM must be set")
 	}
+	secret := os.Getenv("SECRET")
+	if secret == "" {
+		log.Fatal("SECRET environment variable must be set")
+	}
 	cfg := apiConfig{
 		Queries:  dbQueries,
 		PLATFORM: platform,
+		SECRET:   secret,
 	}
 	mux := http.NewServeMux()
 	srvr := http.Server{
