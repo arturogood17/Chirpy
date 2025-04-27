@@ -3,14 +3,16 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/arturogood17/Chirpy/internal/auth"
 )
 
 func (a *apiConfig) hLogin(w http.ResponseWriter, req *http.Request) {
 	type Param struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password         string        `json:"password"`
+		Email            string        `json:"email"`
+		ExpiresInSeconds time.Duration `json:"expires_in_seconds"`
 	}
 	decoder := json.NewDecoder(req.Body)
 	var param Param
@@ -33,8 +35,18 @@ func (a *apiConfig) hLogin(w http.ResponseWriter, req *http.Request) {
 		respondErrorWriter(w, http.StatusUnauthorized, "Incorrect email or password", err)
 		return
 	}
+	expirationTime := time.Hour
+	if param.ExpiresInSeconds > 0 || param.ExpiresInSeconds > 3600 {
+		expirationTime = time.Duration(param.ExpiresInSeconds) * time.Second
+	}
+	token, err := auth.MakeJWT(user.ID, a.SECRET, expirationTime)
+	if err != nil {
+		respondErrorWriter(w, http.StatusInternalServerError, "Error creating JWT token", err)
+		return
+	}
 	responWithJson(w, http.StatusOK, User{Id: user.ID,
 		Created_at: user.CreatedAt,
 		Updated_at: user.UpdatedAt,
-		Email:      user.Email})
+		Email:      user.Email,
+		Token:      token})
 }
