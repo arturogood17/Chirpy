@@ -8,6 +8,7 @@ import (
 
 	"errors"
 
+	"github.com/arturogood17/Chirpy/internal/auth"
 	"github.com/arturogood17/Chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -25,19 +26,37 @@ func (a *apiConfig) hChirp(w http.ResponseWriter, req *http.Request) {
 		Body   string    `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
 	}
+	authToken, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondErrorWriter(w, http.StatusUnauthorized, err.Error(), err)
+		return
+	}
+
+	authUser, err := auth.ValidateJWT(authToken, a.SECRET)
+	if err != nil {
+		respondErrorWriter(w, http.StatusUnauthorized, err.Error(), err)
+		return
+	}
+
 	decoder := json.NewDecoder(req.Body)
 	var paramChirp param
 	if err := decoder.Decode(&paramChirp); err != nil {
 		respondErrorWriter(w, http.StatusInternalServerError, "Couldn't decode request body", err)
 		return
 	}
+
+	if paramChirp.UserID == authUser {
+		respondErrorWriter(w, http.StatusUnauthorized, "Not authorized", nil)
+		return
+	}
+
 	new_body, err := ProfanitiesCleaner(paramChirp.Body)
 	if err != nil {
 		respondErrorWriter(w, http.StatusBadRequest, err.Error(), err)
 		return
 	}
 
-	chirp, err := a.Queries.CreateChirp(req.Context(), database.CreateChirpParams{Body: new_body, UserID: paramChirp.UserID})
+	chirp, err := a.Queries.CreateChirp(req.Context(), database.CreateChirpParams{Body: new_body, UserID: authUser})
 	if err != nil {
 		respondErrorWriter(w, http.StatusInternalServerError, "Error creating chirp", err)
 		return
