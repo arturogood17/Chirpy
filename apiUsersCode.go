@@ -15,7 +15,6 @@ type User struct {
 	Created_at time.Time `json:"created_at"`
 	Updated_at time.Time `json:"updated_at"`
 	Email      string    `json:"email"`
-	Token      string    `json:"token"`
 }
 
 func (cfg *apiConfig) hUser(w http.ResponseWriter, req *http.Request) {
