@@ -36,7 +36,7 @@ func (a *apiConfig) hLogin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	expirationTime := time.Hour
-	if param.ExpiresInSeconds > 0 || param.ExpiresInSeconds > 3600 {
+	if param.ExpiresInSeconds > 0 && param.ExpiresInSeconds < 3600 {
 		expirationTime = time.Duration(param.ExpiresInSeconds) * time.Second
 	}
 	token, err := auth.MakeJWT(user.ID, a.SECRET, expirationTime)
@@ -44,9 +44,15 @@ func (a *apiConfig) hLogin(w http.ResponseWriter, req *http.Request) {
 		respondErrorWriter(w, http.StatusInternalServerError, "Error creating JWT token", err)
 		return
 	}
-	responWithJson(w, http.StatusOK, User{Id: user.ID,
-		Created_at: user.CreatedAt,
-		Updated_at: user.UpdatedAt,
-		Email:      user.Email,
-		Token:      token})
+	type response struct {
+		User
+		Token string `json:"token"`
+	}
+	responWithJson(w, http.StatusOK, response{
+		User: User{Id: user.ID,
+			Created_at: user.CreatedAt,
+			Updated_at: user.UpdatedAt,
+			Email:      user.Email},
+		Token: token,
+	})
 }
