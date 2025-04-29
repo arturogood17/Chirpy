@@ -23,8 +23,7 @@ type Chirp struct {
 
 func (a *apiConfig) hChirp(w http.ResponseWriter, req *http.Request) {
 	type param struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 	authToken, err := auth.GetBearerToken(req.Header)
 	if err != nil {
@@ -42,11 +41,6 @@ func (a *apiConfig) hChirp(w http.ResponseWriter, req *http.Request) {
 	var paramChirp param
 	if err := decoder.Decode(&paramChirp); err != nil {
 		respondErrorWriter(w, http.StatusInternalServerError, "Couldn't decode request body", err)
-		return
-	}
-
-	if paramChirp.UserID == authUser {
-		respondErrorWriter(w, http.StatusUnauthorized, "Not authorized", nil)
 		return
 	}
 
