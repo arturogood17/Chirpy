@@ -2,7 +2,6 @@ package auth
 
 import (
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -10,7 +9,7 @@ import (
 func TestJWT(t *testing.T) {
 	tokenSecret := "This is a test"
 	userID := uuid.New()
-	token, _ := MakeJWT(userID, tokenSecret, 5*time.Minute)
+	token, _ := MakeJWT(userID, tokenSecret)
 	tests := []struct {
 		input   string
 		tokenS  string
