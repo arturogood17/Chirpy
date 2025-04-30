@@ -49,13 +49,15 @@ func main() {
 	}
 	mux.Handle("/app/", cfg.middlewareConfig(http.StripPrefix("/app", http.FileServer(http.Dir("."))))) //sirve todo lo que están en las carpetas
 	mux.HandleFunc("GET /admin/metrics", cfg.handlerServerHits)                                         //se agrego el path admin para uso interno
-	mux.HandleFunc("POST /admin/reset", cfg.handlerServerHitsReset)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.hSingleChirp)
+	mux.HandleFunc("GET /api/chirps", cfg.hListChirps)
 	mux.HandleFunc("GET /api/healthz", hReadiness)
 	mux.HandleFunc("POST /api/users", cfg.hUser)
 	mux.HandleFunc("POST /api/chirps", cfg.hChirp)
-	mux.HandleFunc("GET /api/chirps", cfg.hListChirps)
-	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.hSingleChirp)
+	mux.HandleFunc("POST /admin/reset", cfg.handlerServerHitsReset)
 	mux.HandleFunc("POST /api/login", cfg.hLogin)
+	mux.HandleFunc("POST /api/refresh", cfg.RefreshToken)
+	mux.HandleFunc("POST /api/revoke", cfg.RefreshRevoke)
 	err = srvr.ListenAndServe()
 	if err != nil {
 		log.Fatalf("couldn't listen and serve from server - %v", err)
