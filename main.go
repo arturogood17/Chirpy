@@ -60,6 +60,7 @@ func main() {
 	mux.HandleFunc("POST /api/revoke", cfg.RefreshRevoke)
 	mux.HandleFunc("PUT /api/users", cfg.Authentication)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.DeleteChirp)
+	mux.HandleFunc("POST /api/polka/webhooks", cfg.WebHook)
 	err = srvr.ListenAndServe()
 	if err != nil {
 		log.Fatalf("couldn't listen and serve from server - %v", err)
