@@ -18,6 +18,7 @@ type apiConfig struct {
 	Queries    *database.Queries
 	PLATFORM   string
 	SECRET     string
+	POLKAKEY   string
 }
 
 func main() {
@@ -37,10 +38,15 @@ func main() {
 	if secret == "" {
 		log.Fatal("SECRET environment variable must be set")
 	}
+	polkakey := os.Getenv("POLKA_KEY")
+	if secret == "" {
+		log.Fatal("POLKA API KEY must be set")
+	}
 	cfg := apiConfig{
 		Queries:  dbQueries,
 		PLATFORM: platform,
 		SECRET:   secret,
+		POLKAKEY: polkakey,
 	}
 	mux := http.NewServeMux()
 	srvr := http.Server{
