@@ -43,9 +43,10 @@ func (a *apiConfig) Authentication(w http.ResponseWriter, req *http.Request) {
 		ID:             user})
 
 	responWithJson(w, http.StatusOK, User{
-		Id:         updatedUser.ID,
-		Created_at: updatedUser.CreatedAt,
-		Updated_at: updatedUser.UpdatedAt,
-		Email:      updatedUser.Email,
+		Id:            updatedUser.ID,
+		Created_at:    updatedUser.CreatedAt,
+		Updated_at:    updatedUser.UpdatedAt,
+		Email:         updatedUser.Email,
+		Is_Chirpy_Red: updatedUser.IsChirpyRed.Bool,
 	})
 }
