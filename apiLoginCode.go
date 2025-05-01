@@ -62,9 +62,11 @@ func (a *apiConfig) hLogin(w http.ResponseWriter, req *http.Request) {
 	}
 	responWithJson(w, http.StatusOK, response{
 		User: User{Id: user.ID,
-			Created_at: user.CreatedAt,
-			Updated_at: user.UpdatedAt,
-			Email:      user.Email},
+			Created_at:    user.CreatedAt,
+			Updated_at:    user.UpdatedAt,
+			Email:         user.Email,
+			Is_Chirpy_Red: user.IsChirpyRed.Bool,
+		},
 		Token:        token,
 		RefreshToken: RToken.Token,
 	})
