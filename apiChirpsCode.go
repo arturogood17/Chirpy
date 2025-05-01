@@ -127,3 +127,40 @@ func (a *apiConfig) hSingleChirp(w http.ResponseWriter, req *http.Request) {
 		UserID:    retrievedChirp.UserID.String(),
 	})
 }
+
+func (a *apiConfig) DeleteChirp(w http.ResponseWriter, req *http.Request) {
+	StringID := req.PathValue("chirpID") //Primero revisas que el chirpID esté bien
+	chirpID, err := uuid.Parse(StringID)
+	if err != nil {
+		respondErrorWriter(w, http.StatusBadRequest, "Invalid chirp id", err)
+		return
+	}
+	authToken, err := auth.GetBearerToken(req.Header) //Obtienes el access token que viene en el header "Authorization"
+	if err != nil {
+		respondErrorWriter(w, http.StatusUnauthorized, "token missing or malformed", err)
+		return
+	}
+	userID, err := auth.ValidateJWT(authToken, a.SECRET) //Validas el JWT a ver si el usuario es válido
+	if err != nil {
+		respondErrorWriter(w, http.StatusForbidden, "User invalid", err)
+		return
+	}
+
+	chirp, err := a.Queries.SingleChirp(req.Context(), chirpID) //revisas que exista el chirp
+	if err != nil {
+		respondErrorWriter(w, http.StatusNotFound, "Couldn't find chirp", err)
+		return
+	}
+
+	if chirp.UserID != userID { //validas que el usuario que está eliminando el chirp es el dueño del chirp
+		respondErrorWriter(w, http.StatusForbidden, "You cannot delete this chirp", err)
+		return
+	}
+
+	err = a.Queries.DeleteChirp(req.Context(), chirpID) //eliminas el chirp
+	if err != nil {
+		respondErrorWriter(w, http.StatusInternalServerError, "error deleting chirp", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent) //respondes con 204 (no content)
+}
