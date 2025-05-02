@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -85,10 +86,27 @@ func ProfanitiesCleaner(body string) (string, error) {
 }
 
 func (a *apiConfig) hListChirps(w http.ResponseWriter, req *http.Request) {
-	chirpList, err := a.Queries.ListChirps(req.Context())
-	if err != nil {
-		respondErrorWriter(w, http.StatusInternalServerError, "Error getting chirp list", err)
-		return
+	s := req.URL.Query().Get("author_id")
+	sortStyle := req.URL.Query().Get("sort")
+	var chirpList []database.Chirp
+	var err error //resuelves el problema de la doble definición de chirpList con esto. Declaras err afuera y listo
+	if s != "" {
+		userID, err := uuid.Parse(s)
+		if err != nil {
+			respondErrorWriter(w, http.StatusInternalServerError, "Error parsing user id", err)
+			return
+		}
+		chirpList, err = a.Queries.ListofChirpsByAuthorID(req.Context(), userID)
+		if err != nil {
+			respondErrorWriter(w, http.StatusInternalServerError, "Error getting chirp list by user", err)
+			return
+		}
+	} else {
+		chirpList, err = a.Queries.ListChirps(req.Context())
+		if err != nil {
+			respondErrorWriter(w, http.StatusInternalServerError, "Error getting chirp list", err)
+			return
+		}
 	}
 	if len(chirpList) == 0 {
 		respondErrorWriter(w, http.StatusNotFound, "no chirps found", nil)
@@ -103,6 +121,11 @@ func (a *apiConfig) hListChirps(w http.ResponseWriter, req *http.Request) {
 			Body:      chirp.Body,
 			UserID:    chirp.UserID.String(),
 		})
+	}
+	if sortStyle == "asc" {
+		sort.Slice(JsonedList, func(i, j int) bool { return JsonedList[i].CreatedAt.Before(JsonedList[j].CreatedAt) })
+	} else if sortStyle == "desc" {
+		sort.Slice(JsonedList, func(i, j int) bool { return JsonedList[i].CreatedAt.After(JsonedList[j].CreatedAt) })
 	}
 	responWithJson(w, http.StatusOK, JsonedList)
 }
