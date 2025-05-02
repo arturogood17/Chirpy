@@ -22,7 +22,7 @@ type apiConfig struct {
 }
 
 func main() {
-	godotenv.Load()
+	godotenv.Load(".env")
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
